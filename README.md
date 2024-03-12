@@ -1,4 +1,4 @@
-**# Hand Invaders: Blast 'Em With a Wave! **
+# ☄️Hand Invaders: Blast 'Em With a Wave! 🖐️🚀
 
 Are you ready to defend the galaxy with your bare hands?
 
