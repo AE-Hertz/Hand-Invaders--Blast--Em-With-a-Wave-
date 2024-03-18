@@ -7,6 +7,7 @@ import cv2
 import mediapipe as mp
 import threading
 
+
 pygame.init()
 
 # Screen setup
@@ -60,6 +61,7 @@ player_width, player_height = playerimg.get_rect().size
 playerX = (screen_width - player_width) / 2
 playerY = screen_height - player_height - 150
 
+
 # Enemies setup
 enemyimg = []
 enemyX = []
@@ -77,10 +79,10 @@ for i in range(no_of_enemies):
 
     enemyX.append(random.randint(0, screen_width - player_width))
     enemyY.append(random.randint(0, 150))
-    enemyX_change.append(5)
+    enemyX_change.append(10)
     enemyY_change.append(
-        20
-    )  # You can decrease this value to make enemies come near the player faster
+        60
+    )  # You can increase this value to make enemies come near the player faster
 
 # Bullet setup
 bullets = []
@@ -134,7 +136,7 @@ def isCollision(enemyX, enemyY, bulletX, bulletY):
 
 # Function to display game over text
 def game_over_text():
-    over_text = over_font.render("GAME OVER", True, (255, 255, 255))
+    over_text = over_font.render("GAME OVER", True, (255, 0, 0))
     text_rect = over_text.get_rect(
         center=(int(screen_width / 2), int(screen_height / 2))
     )
@@ -147,10 +149,19 @@ def detect_hand():
 
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands()
-    cap = cv2.VideoCapture(1)
 
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+    # For Webcam Input
+    cap = cv2.VideoCapture(0)
+
+    # For Ipcam Input
+    # cap = cv2.VideoCapture('http://[Ip addr]:[Port]/video',cv2.CAP_FFMPEG)
+
+    # Set the resolution to 720p (1600 x 720)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1600)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
 
     while True:
         success, frame = cap.read()
@@ -199,19 +210,54 @@ def detect_hand():
 
 
 # Game loop
+# Game loop
 def gameloop():
     global score
-    in_game = True
-    while in_game:
+    hp = 100  # Initialize player HP
 
-        screen.fill((0, 0, 0))
-        screen.blit(background, (0, 0))
+    in_game = True
+    game_paused = False  # Indicates whether the game is paused
+
+    # Function to display pause text
+    def pause_text():
+        large_font = pygame.font.Font(
+            asset_font, 80
+        )  # Use a larger font size for pause text
+        pause_surf = large_font.render(
+            "PAUSED - Press ESC to continue", True, (0, 255, 0)
+        )
+        pause_rect = pause_surf.get_rect(center=(screen_width / 2, screen_height / 2))
+        screen.blit(pause_surf, pause_rect)
+
+    # Function to display HP
+    def show_hp():
+
+        hp_value = font.render("HP " + str(hp), True, (255, 255, 255))
+        screen.blit(
+            hp_value, (210, 200)
+        )  # Position the HP display; adjust as needed - (1540, 130)
+
+    while in_game:
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 in_game = False
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    game_paused = not game_paused  # Toggle pause state
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    pygame.quit()
+
+        if game_paused:
+            pause_text()  # Display pause text
+            pygame.display.update()  # Update the display to show the pause text
+            continue  # Skip the rest of the game loop
+
+        screen.fill((0, 0, 0))
+        screen.blit(background, (0, 0))
 
         for bullet in bullets[:]:
             bullet["y"] -= bulletY_change
@@ -220,11 +266,6 @@ def gameloop():
                 bullets.remove(bullet)
 
         for i in range(no_of_enemies):
-            if enemyY[i] > playerY:
-                game_over_text()
-                in_game = False
-                break
-
             enemyX[i] += enemyX_change[i]
             if enemyX[i] <= 0:
                 enemyX_change[i] = 5
@@ -242,10 +283,22 @@ def gameloop():
                     enemyY[i] = random.randint(0, 150)
                     break
 
+            # Check if enemy crosses the player
+            if enemyY[i] > screen_height - 180:
+                hp -= 10  # Decrease HP
+                enemyY[i] = random.randint(-100, 0)  # Reset enemy position to top
+                enemyX[i] = random.randint(0, screen_width - player_width)
+
             enemy(enemyX[i], enemyY[i], i)
+
+            if hp <= 0:
+                game_over_text()
+                in_game = False
+                break
 
         player(playerX, playerY)
         show_score()
+        show_hp()  # Display the current HP
 
         pygame.display.update()
         clock.tick(120)
